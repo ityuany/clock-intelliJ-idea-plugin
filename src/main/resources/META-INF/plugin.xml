@@ -1,0 +1,28 @@
+<idea-plugin>
+    <id>com.onecoc.clock-intelliJ-idea-plugin</id>
+    <name>时钟Doc Parsing</name>
+    <vendor email="519495771@qq.com" url="https://github.com/ityuany/clock-intelliJ-idea-plugin">
+        ityuany
+    </vendor>
+
+    <description><![CDATA[
+        根据Java Doc注释 以及标准的Jsr303注解 生成详细的接口文档信息，目前仅支持Spring Mvc框架
+    ]]></description>
+
+    <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
+         on how to target different products -->
+    <!-- uncomment to enable plugin in all products
+    <depends>com.intellij.modules.lang</depends>
+    -->
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- Add your extensions here -->
+    </extensions>
+
+    <actions>
+        <!-- Add your actions here -->
+        <action class="com.onecoc.action.ParsingAction" id="parsing" text="解析" description="解析接口描述信息">
+            <add-to-group group-id="EditorPopupMenu" anchor="first"/>
+        </action>
+    </actions>
+</idea-plugin>
