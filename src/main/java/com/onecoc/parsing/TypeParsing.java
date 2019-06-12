@@ -26,6 +26,30 @@ public interface TypeParsing {
     boolean isGeneric(PsiClass psiClass);
 
     /**
+     * 是否是泛型
+     *
+     * @param psiField psi类
+     * @return 布尔
+     */
+    boolean isGeneric(PsiField psiField);
+
+    /**
+     * 是否是集合类型
+     *
+     * @param field 目标字段
+     * @return 是否是集合
+     */
+    boolean isList(PsiField field);
+
+    /**
+     * 是否是Map类型
+     *
+     * @param field 目标字段
+     * @return 是否是Map
+     */
+    boolean isMap(PsiField field);
+
+    /**
      * 提取泛型的类型
      *
      * @param element 目标类型
@@ -40,7 +64,7 @@ public interface TypeParsing {
      * @param psiClass psi类信息
      * @return 描述信息
      */
-    List<String> extractGenericTextDescription(PsiClass psiClass);
+    List<String> extractGenericTagText(PsiClass psiClass);
 
     /**
      * 是否属于系统类型
@@ -81,6 +105,22 @@ public interface TypeParsing {
      * @return 本地合法的类型名称
      */
     String parsingPsiFieldQualifiedNativeTypeName(PsiField targetField);
+
+    /**
+     * 解析出集合的泛型类型
+     *
+     * @param field
+     * @return
+     */
+    PsiType parsingListGenericsPsiType(PsiField field);
+
+    /**
+     * 解析出list嵌套的层数
+     *
+     * @param field 目标字段
+     * @return 嵌套层数
+     */
+    int parsingListDeep(PsiField field);
 
     List<Structure> parsing(PsiClass psiClass, List<PsiTypeElement> generic);
 

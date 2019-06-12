@@ -9,6 +9,7 @@ import com.intellij.psi.util.PsiTypesUtil;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * @author yuany
@@ -23,6 +24,14 @@ public class JavaTypeParsing implements TypeParsing {
             "float", "java.lang.Float",
             "char", "java.lang.Character",
             "java.math.BigDecimal", "java.lang.String"
+    );
+
+    private static final List<String> LIST_QUALIFIED_NAME = Lists.newArrayList(
+            "java.util.List", "java.util.ArrayList"
+    );
+
+    private static final List<String> MAP_QUALIFIED_NAME = Lists.newArrayList(
+            "java.util.Map"
     );
 
     private static final List<String> IGNORE_FIELD_NAME = Lists.newArrayList("serialVersionUID");
@@ -97,6 +106,32 @@ public class JavaTypeParsing implements TypeParsing {
     }
 
     @Override
+    public PsiType parsingListGenericsPsiType(PsiField field) {
+        return Optional.ofNullable(field)
+                .map(PsiVariable::getTypeElement)
+                .map(element -> PsiTreeUtil.findChildrenOfAnyType(element, PsiJavaCodeReferenceElement.class))
+                .map(Lists::newArrayList)
+                .map(Lists::reverse)
+                .map(Collection::stream)
+                .map(n -> n.skip(1))
+                .flatMap(Stream::findFirst)
+                .map(PsiJavaCodeReferenceElement::getTypeParameters)
+                .map(Lists::newArrayList)
+                .map(Collection::stream)
+                .flatMap(Stream::findFirst)
+                .orElse(null);
+    }
+
+    @Override
+    public int parsingListDeep(PsiField field) {
+        return Optional.ofNullable(field)
+                .map(PsiVariable::getTypeElement)
+                .map(element -> PsiTreeUtil.findChildrenOfAnyType(element, PsiJavaCodeReferenceElement.class))
+                .map(Collection::size)
+                .orElse(1);
+    }
+
+    @Override
     public boolean isGeneric(PsiType type) {
         return Optional.of(type)
                 .map(PsiTypesUtil::getPsiClass)
@@ -114,6 +149,30 @@ public class JavaTypeParsing implements TypeParsing {
     }
 
     @Override
+    public boolean isGeneric(PsiField psiField) {
+        return Optional.ofNullable(psiField)
+                .map(PsiField::getType)
+                .map(this::isGeneric)
+                .orElse(false);
+    }
+
+    @Override
+    public boolean isList(PsiField field) {
+        return Optional.ofNullable(field)
+                .map(this::parsingPsiFieldQualifiedNativeTypeName)
+                .map(LIST_QUALIFIED_NAME::contains)
+                .orElse(false);
+    }
+
+    @Override
+    public boolean isMap(PsiField field) {
+        return Optional.ofNullable(field)
+                .map(this::parsingPsiFieldQualifiedNativeTypeName)
+                .map(MAP_QUALIFIED_NAME::contains)
+                .orElse(false);
+    }
+
+    @Override
     public List<PsiTypeElement> extractGenericPsiTypeElement(PsiTypeElement element) {
         return Optional.ofNullable(element)
                 .map(n -> PsiTreeUtil.findChildrenOfAnyType(element, PsiTypeElement.class))
@@ -122,7 +181,7 @@ public class JavaTypeParsing implements TypeParsing {
     }
 
     @Override
-    public List<String> extractGenericTextDescription(PsiClass psiClass) {
+    public List<String> extractGenericTagText(PsiClass psiClass) {
         return Optional.of(psiClass)
                 .map(PsiTypeParameterListOwner::getTypeParameters)
                 .map(Lists::newArrayList)
@@ -163,7 +222,7 @@ public class JavaTypeParsing implements TypeParsing {
     @Override
     public List<Structure> parsing(PsiClass psiClass, List<PsiTypeElement> generic) {
 
-        List<String> generics = this.extractGenericTextDescription(psiClass);
+        List<String> generics = this.extractGenericTagText(psiClass);
 
         return Optional.of(psiClass)
                 .map(PsiClass::getFields)
@@ -174,23 +233,36 @@ public class JavaTypeParsing implements TypeParsing {
                 .filter(field -> !IGNORE_FIELD_QUALIFIED_NAME.contains(field.getType().getCanonicalText()))
                 .map(field -> {
 
-
+                    //拿到字段的类信息，可能是null， 基础数组类型的话  就是null
                     PsiClass fieldPsiClass = PsiTypesUtil.getPsiClass(field.getType());
 
+                    // 拿到字段的名称
                     String fieldName = field.getName();
 
+                    // 拿到字段的所有注释信息
                     List<PsiAnnotation> annotations = Optional.of(field)
                             .map(PsiModifierListOwner::getAnnotations)
                             .map(Lists::newArrayList)
                             .orElse(Lists.newArrayList());
 
+                    // 获取字段类型的本地规范类型名称
                     String qualifiedNativeTypeName = this.parsingPsiFieldQualifiedNativeTypeName(field);
 
+                    // 获取转换后的时钟类型名称
                     String clockTypeName = this.convertQualifiedNativeTypeNameToClockTypeName(qualifiedNativeTypeName);
 
+                    //判断jsr303
                     boolean required = annotations.stream().map(PsiAnnotation::getQualifiedName).anyMatch(JSR303_REQUIRED_ANNOTATION::contains);
 
+                    // 获取描述
                     String description = this.parsingDocDescription(field);
+
+                    //字段是不是泛型
+                    boolean isGeneric = this.isGeneric(field);
+
+                    boolean isList = this.isList(field);
+
+                    boolean isMap = this.isMap(field);
 
                     Structure structure = Structure
                             .builder()
@@ -201,13 +273,16 @@ public class JavaTypeParsing implements TypeParsing {
                             .build();
 
 
-                    if (Objects.isNull(fieldPsiClass) || BASIC_SYSTEM_TYPE.contains(qualifiedNativeTypeName)) {
+                    if (BASIC_SYSTEM_TYPE.contains(qualifiedNativeTypeName)) {
+                        //基础数据类型
                         structure.setClockType(clockTypeName);
                     } else if (fieldPsiClass.isEnum()) {
+                        //枚举类型
                         structure
                                 .setOptional(this.parsingEnumStructure(fieldPsiClass))
                                 .setClockType("enum");
                     } else if (generics.contains(qualifiedNativeTypeName)) {
+                        //泛型
                         PsiTypeElement element = generic.remove(0);
                         structure
                                 .setClockType("object")
@@ -216,10 +291,34 @@ public class JavaTypeParsing implements TypeParsing {
                                         Lists.newArrayList()
                                 ));
                     } else if (Objects.equals("java.util.List", qualifiedNativeTypeName)) {
+                        //集合
+                        PsiType psiType = this.parsingListGenericsPsiType(field);
+
+                        String s = Optional.ofNullable(psiType)
+                                .map(PsiTypesUtil::getPsiClass)
+                                .map(PsiClass::getQualifiedName)
+                                .orElse(
+                                        Optional.ofNullable(psiType).map(PsiType::getCanonicalText).orElse(null)
+                                );
+
+                        //维度
+                        int i = this.parsingListDeep(field);
+
+                        structure.setClockType(String.format("array<%s>[%s]", BASIC_SYSTEM_TYPE.contains(s) ? this.convertQualifiedNativeTypeNameToClockTypeName(psiType.getCanonicalText()) : "object", i))
+                                .setNativeType("java.util.List");
+
+                        // 不属于基础数据类型的话，才递归
+                        if (!BASIC_SYSTEM_TYPE.contains(s)) {
+                            structure.setChildren(
+                                    this.parsing(PsiTypesUtil.getPsiClass(psiType), Lists.newArrayList())
+                            );
+                        }
+
 
                     } else if (Objects.equals("java.util.Map", qualifiedNativeTypeName)) {
-
+                        //Map
                     } else {
+                        //自定义对象
                         structure.setClockType("object").setChildren(this.parsing(fieldPsiClass, Lists.newArrayList()));
                     }
 
