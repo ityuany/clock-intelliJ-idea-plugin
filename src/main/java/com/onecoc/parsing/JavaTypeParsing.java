@@ -1,11 +1,15 @@
 package com.onecoc.parsing;
 
+import com.google.common.base.Function;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Streams;
 import com.intellij.psi.*;
 import com.intellij.psi.impl.source.javadoc.PsiDocTokenImpl;
 import com.intellij.psi.javadoc.PsiDocComment;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.util.PsiTypesUtil;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -300,7 +304,11 @@ public class JavaTypeParsing implements TypeParsing {
     @Override
     public List<Structure> parsing(PsiClass psiClass, List<PsiTypeElement> generic) {
 
-        List<String> generics = this.extractGenericTagText(psiClass);
+        Map<String, PsiTypeElement> tagToElement = Streams.zip(
+                this.extractGenericTagText(psiClass).stream(),
+                generic.stream(),
+                (tag, element) -> GenericMapStructure.builder().key(tag).value(element).build()
+        ).collect(Collectors.toMap(GenericMapStructure::getKey, GenericMapStructure::getValue));
 
         return Optional.of(psiClass)
                 .map(PsiClass::getFields)
@@ -351,25 +359,39 @@ public class JavaTypeParsing implements TypeParsing {
                             .name(fieldName)
                             .required(required)
                             .description(description)
-                            .nativeType(qualifiedNativeTypeName)
+                            .nativeType(
+                                    Optional.ofNullable(tagToElement.get(qualifiedNativeTypeName))
+                                            .map(PsiTypeElement::getType)
+                                            .map(this::extractFieldNativeQualifiedTypeName)
+                                            .orElse(qualifiedNativeTypeName)
+                            )
                             .clockType(clockTypeName)
                             .build();
 
+
                     if (isList) {
+
+
                         //集合
                         PsiType genericsType = this.parsingListGenericsPsiType(field);
 
 
-                        if (generics.contains(genericsType.getCanonicalText())) {
-                            PsiTypeElement element = generic.remove(0);
-                            List<Structure> children = this.parsing(
-                                    PsiTypesUtil.getPsiClass(element.getType()),
-                                    generic
-                            );
-                            structure.setChildren(children);
-                        }else{
-                            // 不属于基础数据类型,也不属于外部泛型的话，才递归
-                            if (!this.isNormal(genericsType)) {
+                        if (!this.isNormal(genericsType)) {
+
+                            if (tagToElement.keySet().contains(genericsType.getCanonicalText())) {
+                                PsiTypeElement element = tagToElement.get(genericsType.getCanonicalText());
+
+                                if (!this.isNormal(element.getType())) {
+
+                                    List<Structure> children = this.parsing(
+                                            PsiTypesUtil.getPsiClass(element.getType()),
+                                            generic
+                                    );
+                                    structure.setChildren(children);
+                                }
+
+
+                            } else {
                                 structure.setChildren(
                                         this.parsing(
                                                 PsiTypesUtil.getPsiClass(genericsType),
@@ -377,12 +399,13 @@ public class JavaTypeParsing implements TypeParsing {
                                         )
                                 );
                             }
+
                         }
 
 
                     } else if (isMap) {
                         //Map
-                    } else if (generics.contains(qualifiedNativeTypeName)) {
+                    } else if (tagToElement.keySet().contains(qualifiedNativeTypeName)) {
                         //泛型
                         PsiTypeElement element = generic.remove(0);
                         structure
@@ -398,7 +421,24 @@ public class JavaTypeParsing implements TypeParsing {
                         //基础数据类型
                     } else {
                         //自定义对象
-                        structure.setChildren(this.parsing(fieldPsiClass, generic));
+
+
+                        if (tagToElement.keySet().contains(qualifiedNativeTypeName)) {
+                            //如果自身 就是泛型的tag指向
+                            structure.setChildren(this.parsing(fieldPsiClass, Lists.newArrayList(
+                                    tagToElement.get(qualifiedNativeTypeName)
+                            )));
+                        } else {
+
+//                            List<PsiTypeElement> psiTypeElements = this.extractGenericPsiTypeElement(field.getTypeElement());
+//
+//                            List<String> collect = psiTypeElements.stream().map(PsiTypeElement::getType).map(this::extractFieldNativeQualifiedTypeName).collect(Collectors.toList());
+//
+//
+//                            List<PsiTypeElement> collect1 = tagToElement.entrySet().stream().filter(n -> collect.contains(n.getKey())).map(Map.Entry::getValue).collect(Collectors.toList());
+
+                            structure.setChildren(this.parsing(fieldPsiClass, generic));
+                        }
                     }
 
 
