@@ -4,7 +4,6 @@ import com.google.common.collect.Lists;
 import com.intellij.psi.*;
 import com.intellij.psi.javadoc.PsiDocComment;
 import com.intellij.psi.util.PsiTreeUtil;
-import com.intellij.psi.util.PsiTypesUtil;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -76,8 +75,7 @@ public class JavaMethodController implements MethodParsing {
                 .map(PsiJavaDocumentedElement::getDocComment)
                 .map(PsiDocComment::getDescriptionElements)
                 .map(Lists::newArrayList)
-                .map(n -> n.stream().map(PsiElement::getText).collect(Collectors.toList()))
-                .map(n -> String.join("", n))
+                .map(n -> n.stream().map(PsiElement::getText).collect(Collectors.joining()))
                 .map(String::trim)
                 .orElse(
                         Optional.of(selectedMethod)
@@ -86,21 +84,5 @@ public class JavaMethodController implements MethodParsing {
                 );
     }
 
-    @Override
-    public List<PsiTypeElement> getMethodReturnGenericStructure(PsiMethod selectedMethod) {
-        return Optional.of(selectedMethod)
-                .map(n -> PsiTreeUtil.findChildrenOfAnyType(n.getReturnTypeElement(), PsiTypeElement.class))
-                .map(Lists::newArrayList)
-                .get();
-    }
 
-    @Override
-    public boolean isGenericForReturnType(PsiMethod selectedMethod) {
-        return Optional.of(selectedMethod)
-                .map(n -> PsiTypesUtil.getPsiClass(n.getReturnType()))
-                .map(PsiTypeParameterListOwner::getTypeParameters)
-                .map(Lists::newArrayList)
-                .map(ArrayList::size)
-                .orElse(0) > 0;
-    }
 }

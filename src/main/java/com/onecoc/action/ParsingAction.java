@@ -1,5 +1,6 @@
 package com.onecoc.action;
 
+import com.alibaba.fastjson.JSONObject;
 import com.google.common.collect.Lists;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
@@ -9,10 +10,7 @@ import com.intellij.openapi.editor.Editor;
 import com.intellij.psi.*;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.util.PsiTypesUtil;
-import com.onecoc.parsing.ControllerParsing;
-import com.onecoc.parsing.JavaControllerParsing;
-import com.onecoc.parsing.JavaMethodController;
-import com.onecoc.parsing.MethodParsing;
+import com.onecoc.parsing.*;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -26,6 +24,8 @@ public class ParsingAction extends AnAction {
     private ControllerParsing controllerParsing = new JavaControllerParsing();
 
     private MethodParsing methodParsing = new JavaMethodController();
+
+    private TypeParsing typeParsing = new JavaTypeParsing();
 
 
     final List<String> controllerTag = Lists.newArrayList(
@@ -84,9 +84,18 @@ public class ParsingAction extends AnAction {
 
         String methodDescription = methodParsing.getMethodDescription(selectedMethod);
 
-        List<PsiTypeElement> methodReturnGenericStructure = methodParsing.getMethodReturnGenericStructure(selectedMethod);
+        List<PsiTypeElement> methodReturnGenericStructure = typeParsing.extractGenericPsiTypeElement(selectedMethod.getReturnTypeElement());
 
-        boolean genericForReturnType = methodParsing.isGenericForReturnType(selectedMethod);
+
+        boolean genericForReturnType = typeParsing.isGeneric(selectedMethod.getReturnType());
+
+
+        List<Structure> parameterValue = typeParsing.parsing(
+                PsiTypesUtil.getPsiClass(Lists.newArrayList(selectedMethod.getParameterList().getParameters()).get(0).getType()),
+                Lists.newArrayList()
+        );
+
+        List<Structure> returnValue = typeParsing.parsing(PsiTypesUtil.getPsiClass(selectedMethod.getReturnType()), methodReturnGenericStructure);
 
         System.out.println(String.format("是否合法：%s", isInterface && isController));
         System.out.println(String.format("接口名称：%s", methodDescription));
@@ -95,6 +104,8 @@ public class ParsingAction extends AnAction {
         System.out.println(String.format("返回值的泛型结构：%s", methodReturnGenericStructure));
         System.out.println(String.format("请求地址：%s%s", controllerHttpPath, routePath));
 
+        System.out.println(String.format("请求参数：%s",JSONObject.toJSONString(parameterValue)));
+        System.out.println(String.format("接口的返回值：%s", JSONObject.toJSONString(returnValue)));
 
 
     }

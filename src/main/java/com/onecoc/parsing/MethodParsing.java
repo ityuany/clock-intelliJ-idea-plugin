@@ -69,18 +69,6 @@ public interface MethodParsing {
      */
     String getMethodDescription(PsiMethod selectedMethod);
 
-    /**
-     * 获取函数返回值的结构
-     * @param selectedMethod 目标函数
-     * @return 结构
-     */
-    List<PsiTypeElement> getMethodReturnGenericStructure(PsiMethod selectedMethod);
 
-    /**
-     * 判断函数的返回值是不是泛型结构
-     * @param selectedMethod 目标函数
-     * @return 是不是泛型
-     */
-    boolean isGenericForReturnType(PsiMethod selectedMethod);
 
 }
