@@ -34,6 +34,13 @@ public interface TypeParsing {
     boolean isGeneric(PsiField psiField);
 
     /**
+     * 是否是枚举
+     * @param psiField 目标字段
+     * @return 布尔
+     */
+    boolean isEnum(PsiField psiField);
+
+    /**
      * 是否是集合类型
      *
      * @param field 目标字段

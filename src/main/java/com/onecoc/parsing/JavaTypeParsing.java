@@ -157,6 +157,15 @@ public class JavaTypeParsing implements TypeParsing {
     }
 
     @Override
+    public boolean isEnum(PsiField psiField) {
+        return Optional.ofNullable(psiField)
+                .map(PsiField::getType)
+                .map(PsiTypesUtil::getPsiClass)
+                .map(PsiClass::isEnum)
+                .orElse(false);
+    }
+
+    @Override
     public boolean isList(PsiField field) {
         return Optional.ofNullable(field)
                 .map(this::parsingPsiFieldQualifiedNativeTypeName)
@@ -264,6 +273,8 @@ public class JavaTypeParsing implements TypeParsing {
 
                     boolean isMap = this.isMap(field);
 
+                    boolean isEnum = this.isEnum(field);
+
                     Structure structure = Structure
                             .builder()
                             .name(fieldName)
@@ -272,25 +283,7 @@ public class JavaTypeParsing implements TypeParsing {
                             .nativeType(qualifiedNativeTypeName)
                             .build();
 
-
-                    if (BASIC_SYSTEM_TYPE.contains(qualifiedNativeTypeName)) {
-                        //基础数据类型
-                        structure.setClockType(clockTypeName);
-                    } else if (fieldPsiClass.isEnum()) {
-                        //枚举类型
-                        structure
-                                .setOptional(this.parsingEnumStructure(fieldPsiClass))
-                                .setClockType("enum");
-                    } else if (generics.contains(qualifiedNativeTypeName)) {
-                        //泛型
-                        PsiTypeElement element = generic.remove(0);
-                        structure
-                                .setClockType("object")
-                                .setChildren(this.parsing(
-                                        PsiTypesUtil.getPsiClass(element.getType()),
-                                        Lists.newArrayList()
-                                ));
-                    } else if (Objects.equals("java.util.List", qualifiedNativeTypeName)) {
+                    if (isList) {
                         //集合
                         PsiType psiType = this.parsingListGenericsPsiType(field);
 
@@ -314,13 +307,30 @@ public class JavaTypeParsing implements TypeParsing {
                             );
                         }
 
-
-                    } else if (Objects.equals("java.util.Map", qualifiedNativeTypeName)) {
+                    } else if (isMap) {
                         //Map
+                    } else if (generics.contains(qualifiedNativeTypeName)) {
+                        //泛型
+                        PsiTypeElement element = generic.remove(0);
+                        structure
+                                .setClockType("object")
+                                .setChildren(this.parsing(
+                                        PsiTypesUtil.getPsiClass(element.getType()),
+                                        Lists.newArrayList()
+                                ));
+                    } else if (isEnum) {
+                        //枚举类型
+                        structure
+                                .setOptional(this.parsingEnumStructure(fieldPsiClass))
+                                .setClockType("enum");
+                    } else if (BASIC_SYSTEM_TYPE.contains(qualifiedNativeTypeName)) {
+                        //基础数据类型
+                        structure.setClockType(clockTypeName);
                     } else {
                         //自定义对象
                         structure.setClockType("object").setChildren(this.parsing(fieldPsiClass, Lists.newArrayList()));
                     }
+
 
                     return structure;
                 })
