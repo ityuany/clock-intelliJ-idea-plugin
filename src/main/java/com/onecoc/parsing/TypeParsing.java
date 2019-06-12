@@ -49,12 +49,36 @@ public interface TypeParsing {
     boolean isList(PsiField field);
 
     /**
+     * 是否是集合类型
+     *
+     * @param targetType 目标字段
+     * @return 是否是集合
+     */
+    boolean isList(PsiType targetType);
+
+    /**
      * 是否是Map类型
      *
      * @param field 目标字段
      * @return 是否是Map
      */
     boolean isMap(PsiField field);
+
+    /**
+     * 是否是基础数据类型
+     *
+     * @param field
+     * @return
+     */
+    boolean isNormal(PsiField field);
+
+    /**
+     * 是否是基础数据类型
+     *
+     * @param targetType
+     * @return
+     */
+    boolean isNormal(PsiType targetType);
 
     /**
      * 提取泛型的类型
@@ -92,10 +116,10 @@ public interface TypeParsing {
     /**
      * 转换类型的名称
      *
-     * @param qualifiedNativeName 语言本地完整的名称
+     * @param psiField 语言本地完整的名称
      * @return clock类型系统的名称
      */
-    String convertQualifiedNativeTypeNameToClockTypeName(String qualifiedNativeName);
+    String convertToClockTypeName(PsiField psiField);
 
     /**
      * 解析注释信息的具体描述
@@ -111,7 +135,15 @@ public interface TypeParsing {
      * @param targetField 类型
      * @return 本地合法的类型名称
      */
-    String parsingPsiFieldQualifiedNativeTypeName(PsiField targetField);
+    String extractFieldNativeQualifiedTypeName(PsiField targetField);
+
+    /**
+     * 解析出本地完整合法的类型名称
+     *
+     * @param targetType 类型
+     * @return 本地合法的类型名称
+     */
+    String extractFieldNativeQualifiedTypeName(PsiType targetType);
 
     /**
      * 解析出集合的泛型类型

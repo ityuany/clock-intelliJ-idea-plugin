@@ -46,66 +46,72 @@ public class ParsingAction extends AnAction {
     @Override
     public void actionPerformed(@NotNull AnActionEvent e) {
 
-        // 获取当前的编辑行
-        Editor editor = e.getData(PlatformDataKeys.EDITOR);
+        try {
+            // 获取当前的编辑行
+            Editor editor = e.getData(PlatformDataKeys.EDITOR);
 
-        //获取文件
-        PsiFile file = e.getData(CommonDataKeys.PSI_FILE);
+            //获取文件
+            PsiFile file = e.getData(CommonDataKeys.PSI_FILE);
 
-        if (Objects.isNull(editor) || Objects.isNull(file)) {
-            return;
+            if (Objects.isNull(editor) || Objects.isNull(file)) {
+                return;
+            }
+
+            PsiElement element = file.findElementAt(editor.getCaretModel().getOffset());
+
+            PsiClass selectedClass = PsiTreeUtil.getContextOfType(element, PsiClass.class);
+
+            PsiMethod selectedMethod = PsiTreeUtil.getContextOfType(element, PsiMethod.class);
+
+
+            boolean isController = controllerParsing.isQualifiedController(selectedClass);
+
+            if (!isController) {
+                return;
+            }
+
+            String controllerHttpPath = controllerParsing.getControllerHttpPath(selectedClass);
+
+            boolean isInterface = methodParsing.isQualifiedHttpInterface(selectedMethod);
+
+
+            if (!isInterface) {
+                return;
+            }
+
+            String routePath = methodParsing.getRoutePath(selectedMethod);
+
+            String requestMethod = methodParsing.getRequestMethod(selectedMethod);
+
+            String methodDescription = methodParsing.getMethodDescription(selectedMethod);
+
+            List<PsiTypeElement> methodReturnGenericStructure = typeParsing.extractGenericPsiTypeElement(selectedMethod.getReturnTypeElement());
+
+
+            boolean genericForReturnType = typeParsing.isGeneric(selectedMethod.getReturnType());
+
+
+//            typeParsing.parsing(
+//                    PsiTypesUtil.getPsiClass(Lists.newArrayList(selectedMethod.getParameterList().getParameters()).get(0).getType()),
+//                    Lists.newArrayList()
+//            );
+
+            List<Structure> parameterValue = null;
+
+            List<Structure> returnValue = typeParsing.parsing(PsiTypesUtil.getPsiClass(selectedMethod.getReturnType()), methodReturnGenericStructure);
+
+            System.out.println(String.format("是否合法：%s", isInterface && isController));
+            System.out.println(String.format("接口名称：%s", methodDescription));
+            System.out.println(String.format("请求方法：%s", requestMethod));
+            System.out.println(String.format("返回值是否是泛型：%s", genericForReturnType));
+            System.out.println(String.format("返回值的泛型结构：%s", methodReturnGenericStructure));
+            System.out.println(String.format("请求地址：%s%s", controllerHttpPath, routePath));
+
+            System.out.println(String.format("请求参数：%s",JSONObject.toJSONString(parameterValue)));
+            System.out.println(String.format("接口的返回值：%s", JSONObject.toJSONString(returnValue)));
+        } catch (Exception ex) {
+            ex.printStackTrace();
         }
-
-        PsiElement element = file.findElementAt(editor.getCaretModel().getOffset());
-
-        PsiClass selectedClass = PsiTreeUtil.getContextOfType(element, PsiClass.class);
-
-        PsiMethod selectedMethod = PsiTreeUtil.getContextOfType(element, PsiMethod.class);
-
-
-        boolean isController = controllerParsing.isQualifiedController(selectedClass);
-
-        if (!isController) {
-            return;
-        }
-
-        String controllerHttpPath = controllerParsing.getControllerHttpPath(selectedClass);
-
-        boolean isInterface = methodParsing.isQualifiedHttpInterface(selectedMethod);
-
-
-        if (!isInterface) {
-            return;
-        }
-
-        String routePath = methodParsing.getRoutePath(selectedMethod);
-
-        String requestMethod = methodParsing.getRequestMethod(selectedMethod);
-
-        String methodDescription = methodParsing.getMethodDescription(selectedMethod);
-
-        List<PsiTypeElement> methodReturnGenericStructure = typeParsing.extractGenericPsiTypeElement(selectedMethod.getReturnTypeElement());
-
-
-        boolean genericForReturnType = typeParsing.isGeneric(selectedMethod.getReturnType());
-
-
-        List<Structure> parameterValue = typeParsing.parsing(
-                PsiTypesUtil.getPsiClass(Lists.newArrayList(selectedMethod.getParameterList().getParameters()).get(0).getType()),
-                Lists.newArrayList()
-        );
-
-        List<Structure> returnValue = typeParsing.parsing(PsiTypesUtil.getPsiClass(selectedMethod.getReturnType()), methodReturnGenericStructure);
-
-        System.out.println(String.format("是否合法：%s", isInterface && isController));
-        System.out.println(String.format("接口名称：%s", methodDescription));
-        System.out.println(String.format("请求方法：%s", requestMethod));
-        System.out.println(String.format("返回值是否是泛型：%s", genericForReturnType));
-        System.out.println(String.format("返回值的泛型结构：%s", methodReturnGenericStructure));
-        System.out.println(String.format("请求地址：%s%s", controllerHttpPath, routePath));
-
-        System.out.println(String.format("请求参数：%s",JSONObject.toJSONString(parameterValue)));
-        System.out.println(String.format("接口的返回值：%s", JSONObject.toJSONString(returnValue)));
 
 
     }

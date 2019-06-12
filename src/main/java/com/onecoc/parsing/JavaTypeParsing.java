@@ -23,7 +23,8 @@ public class JavaTypeParsing implements TypeParsing {
             "int", "java.lang.Integer",
             "float", "java.lang.Float",
             "char", "java.lang.Character",
-            "java.math.BigDecimal", "java.lang.String"
+            "java.math.BigDecimal", "java.lang.String",
+            "java.util.Date"
     );
 
     private static final List<String> LIST_QUALIFIED_NAME = Lists.newArrayList(
@@ -43,9 +44,36 @@ public class JavaTypeParsing implements TypeParsing {
     );
 
     @Override
-    public String convertQualifiedNativeTypeNameToClockTypeName(String qualifiedNativeName) {
+    public String convertToClockTypeName(PsiField psiField) {
+        boolean isEnum = Optional.ofNullable(psiField)
+                .map(PsiField::getType)
+                .map(PsiTypesUtil::getPsiClass)
+                .map(PsiClass::isEnum)
+                .orElse(false);
 
-        switch (qualifiedNativeName) {
+
+        boolean isList = Optional.ofNullable(psiField)
+                .map(this::isList)
+                .orElse(false);
+
+        if (isEnum) {
+            return "enum";
+        } else if (isList) {
+            PsiType genericsType = this.parsingListGenericsPsiType(psiField);
+            String genericsNativeQualifiedTypeName = this.extractFieldNativeQualifiedTypeName(genericsType);
+            //维度
+            int deepIndex = this.parsingListDeep(psiField);
+            return String.format("array<%s>[%s]", isNormal(genericsType) ? this.convert(genericsNativeQualifiedTypeName) : "object", --deepIndex);
+        } else {
+            String nativeName = this.extractFieldNativeQualifiedTypeName(psiField);
+            return this.convert(nativeName);
+        }
+    }
+
+
+    private String convert(String nativeName) {
+
+        switch (nativeName) {
             case "boolean":
             case "java.lang.Boolean":
                 return "boolean";
@@ -72,9 +100,13 @@ public class JavaTypeParsing implements TypeParsing {
             case "java.util.Map":
                 return "map";
 
+            case "java.util.Date":
+                return "moment";
+
             default:
-                return null;
+                return "object";
         }
+
     }
 
     @Override
@@ -92,7 +124,7 @@ public class JavaTypeParsing implements TypeParsing {
     }
 
     @Override
-    public String parsingPsiFieldQualifiedNativeTypeName(PsiField targetField) {
+    public String extractFieldNativeQualifiedTypeName(PsiField targetField) {
         return Optional.ofNullable(targetField)
                 .map(PsiField::getType)
                 .map(PsiTypesUtil::getPsiClass)
@@ -100,6 +132,18 @@ public class JavaTypeParsing implements TypeParsing {
                 .orElse(
                         Optional.ofNullable(targetField)
                                 .map(PsiField::getType)
+                                .map(PsiType::getCanonicalText)
+                                .orElse(null)
+                );
+    }
+
+    @Override
+    public String extractFieldNativeQualifiedTypeName(PsiType targetType) {
+        return Optional.ofNullable(targetType)
+                .map(PsiTypesUtil::getPsiClass)
+                .map(PsiClass::getQualifiedName)
+                .orElse(
+                        Optional.ofNullable(targetType)
                                 .map(PsiType::getCanonicalText)
                                 .orElse(null)
                 );
@@ -168,7 +212,15 @@ public class JavaTypeParsing implements TypeParsing {
     @Override
     public boolean isList(PsiField field) {
         return Optional.ofNullable(field)
-                .map(this::parsingPsiFieldQualifiedNativeTypeName)
+                .map(this::extractFieldNativeQualifiedTypeName)
+                .map(LIST_QUALIFIED_NAME::contains)
+                .orElse(false);
+    }
+
+    @Override
+    public boolean isList(PsiType targetType) {
+        return Optional.ofNullable(targetType)
+                .map(this::extractFieldNativeQualifiedTypeName)
                 .map(LIST_QUALIFIED_NAME::contains)
                 .orElse(false);
     }
@@ -176,8 +228,24 @@ public class JavaTypeParsing implements TypeParsing {
     @Override
     public boolean isMap(PsiField field) {
         return Optional.ofNullable(field)
-                .map(this::parsingPsiFieldQualifiedNativeTypeName)
+                .map(this::extractFieldNativeQualifiedTypeName)
                 .map(MAP_QUALIFIED_NAME::contains)
+                .orElse(false);
+    }
+
+    @Override
+    public boolean isNormal(PsiField field) {
+        return Optional.ofNullable(field)
+                .map(this::extractFieldNativeQualifiedTypeName)
+                .map(BASIC_SYSTEM_TYPE::contains)
+                .orElse(false);
+    }
+
+    @Override
+    public boolean isNormal(PsiType targetType) {
+        return Optional.ofNullable(targetType)
+                .map(this::extractFieldNativeQualifiedTypeName)
+                .map(BASIC_SYSTEM_TYPE::contains)
                 .orElse(false);
     }
 
@@ -191,7 +259,7 @@ public class JavaTypeParsing implements TypeParsing {
 
     @Override
     public List<String> extractGenericTagText(PsiClass psiClass) {
-        return Optional.of(psiClass)
+        return Optional.ofNullable(psiClass)
                 .map(PsiTypeParameterListOwner::getTypeParameters)
                 .map(Lists::newArrayList)
                 .map(Collection::stream)
@@ -228,6 +296,7 @@ public class JavaTypeParsing implements TypeParsing {
                 .collect(Collectors.toList());
     }
 
+
     @Override
     public List<Structure> parsing(PsiClass psiClass, List<PsiTypeElement> generic) {
 
@@ -255,10 +324,10 @@ public class JavaTypeParsing implements TypeParsing {
                             .orElse(Lists.newArrayList());
 
                     // 获取字段类型的本地规范类型名称
-                    String qualifiedNativeTypeName = this.parsingPsiFieldQualifiedNativeTypeName(field);
+                    String qualifiedNativeTypeName = this.extractFieldNativeQualifiedTypeName(field);
 
                     // 获取转换后的时钟类型名称
-                    String clockTypeName = this.convertQualifiedNativeTypeNameToClockTypeName(qualifiedNativeTypeName);
+                    String clockTypeName = this.convertToClockTypeName(field);
 
                     //判断jsr303
                     boolean required = annotations.stream().map(PsiAnnotation::getQualifiedName).anyMatch(JSR303_REQUIRED_ANNOTATION::contains);
@@ -275,37 +344,41 @@ public class JavaTypeParsing implements TypeParsing {
 
                     boolean isEnum = this.isEnum(field);
 
+                    boolean isNormal = this.isNormal(field);
+
                     Structure structure = Structure
                             .builder()
                             .name(fieldName)
                             .required(required)
                             .description(description)
                             .nativeType(qualifiedNativeTypeName)
+                            .clockType(clockTypeName)
                             .build();
 
                     if (isList) {
                         //集合
-                        PsiType psiType = this.parsingListGenericsPsiType(field);
+                        PsiType genericsType = this.parsingListGenericsPsiType(field);
 
-                        String s = Optional.ofNullable(psiType)
-                                .map(PsiTypesUtil::getPsiClass)
-                                .map(PsiClass::getQualifiedName)
-                                .orElse(
-                                        Optional.ofNullable(psiType).map(PsiType::getCanonicalText).orElse(null)
-                                );
 
-                        //维度
-                        int i = this.parsingListDeep(field);
-
-                        structure.setClockType(String.format("array<%s>[%s]", BASIC_SYSTEM_TYPE.contains(s) ? this.convertQualifiedNativeTypeNameToClockTypeName(psiType.getCanonicalText()) : "object", i))
-                                .setNativeType("java.util.List");
-
-                        // 不属于基础数据类型的话，才递归
-                        if (!BASIC_SYSTEM_TYPE.contains(s)) {
-                            structure.setChildren(
-                                    this.parsing(PsiTypesUtil.getPsiClass(psiType), Lists.newArrayList())
+                        if (generics.contains(genericsType.getCanonicalText())) {
+                            PsiTypeElement element = generic.remove(0);
+                            List<Structure> children = this.parsing(
+                                    PsiTypesUtil.getPsiClass(element.getType()),
+                                    generic
                             );
+                            structure.setChildren(children);
+                        }else{
+                            // 不属于基础数据类型,也不属于外部泛型的话，才递归
+                            if (!this.isNormal(genericsType)) {
+                                structure.setChildren(
+                                        this.parsing(
+                                                PsiTypesUtil.getPsiClass(genericsType),
+                                                Lists.newArrayList()
+                                        )
+                                );
+                            }
                         }
+
 
                     } else if (isMap) {
                         //Map
@@ -316,19 +389,16 @@ public class JavaTypeParsing implements TypeParsing {
                                 .setClockType("object")
                                 .setChildren(this.parsing(
                                         PsiTypesUtil.getPsiClass(element.getType()),
-                                        Lists.newArrayList()
+                                        generic
                                 ));
                     } else if (isEnum) {
                         //枚举类型
-                        structure
-                                .setOptional(this.parsingEnumStructure(fieldPsiClass))
-                                .setClockType("enum");
+                        structure.setOptional(this.parsingEnumStructure(fieldPsiClass));
                     } else if (BASIC_SYSTEM_TYPE.contains(qualifiedNativeTypeName)) {
                         //基础数据类型
-                        structure.setClockType(clockTypeName);
                     } else {
                         //自定义对象
-                        structure.setClockType("object").setChildren(this.parsing(fieldPsiClass, Lists.newArrayList()));
+                        structure.setChildren(this.parsing(fieldPsiClass, generic));
                     }
 
 
