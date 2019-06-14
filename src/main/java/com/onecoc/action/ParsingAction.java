@@ -11,6 +11,8 @@ import com.intellij.psi.*;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.util.PsiTypesUtil;
 import com.onecoc.parsing.*;
+import com.onecoc.parsing.strategy.ListParsingStrategy;
+import com.onecoc.parsing.strategy.ParsingStrategy;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.List;
@@ -63,7 +65,6 @@ public class ParsingAction extends AnAction {
 
             PsiMethod selectedMethod = PsiTreeUtil.getContextOfType(element, PsiMethod.class);
 
-
             boolean isController = controllerParsing.isQualifiedController(selectedClass);
 
             if (!isController) {
@@ -88,15 +89,15 @@ public class ParsingAction extends AnAction {
             List<PsiTypeElement> methodReturnGenericStructure = typeParsing.extractGenericPsiTypeElement(selectedMethod.getReturnTypeElement());
 
 
-            boolean genericForReturnType = typeParsing.isGeneric(selectedMethod.getReturnType());
+            boolean genericForReturnType = typeParsing.hasGenericTag(selectedMethod.getReturnType());
 
 
-//            typeParsing.parsing(
+
+
+//            List<Structure> parameterValue = typeParsing.parsing(
 //                    PsiTypesUtil.getPsiClass(Lists.newArrayList(selectedMethod.getParameterList().getParameters()).get(0).getType()),
 //                    Lists.newArrayList()
 //            );
-
-            List<Structure> parameterValue = null;
 
             List<Structure> returnValue = typeParsing.parsing(PsiTypesUtil.getPsiClass(selectedMethod.getReturnType()), methodReturnGenericStructure);
 
@@ -107,7 +108,7 @@ public class ParsingAction extends AnAction {
             System.out.println(String.format("返回值的泛型结构：%s", methodReturnGenericStructure));
             System.out.println(String.format("请求地址：%s%s", controllerHttpPath, routePath));
 
-            System.out.println(String.format("请求参数：%s",JSONObject.toJSONString(parameterValue)));
+//            System.out.println(String.format("请求参数：%s",JSONObject.toJSONString(parameterValue)));
             System.out.println(String.format("接口的返回值：%s", JSONObject.toJSONString(returnValue)));
         } catch (Exception ex) {
             ex.printStackTrace();

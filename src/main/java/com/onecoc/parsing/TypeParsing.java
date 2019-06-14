@@ -3,6 +3,7 @@ package com.onecoc.parsing;
 import com.intellij.psi.*;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author yuany
@@ -15,7 +16,7 @@ public interface TypeParsing {
      * @param type psi的类型
      * @return 布尔
      */
-    boolean isGeneric(PsiType type);
+    boolean hasGenericTag(PsiType type);
 
     /**
      * 是否是泛型
@@ -23,7 +24,7 @@ public interface TypeParsing {
      * @param psiClass psi类
      * @return 布尔
      */
-    boolean isGeneric(PsiClass psiClass);
+    boolean hasGenericTag(PsiClass psiClass);
 
     /**
      * 是否是泛型
@@ -31,7 +32,7 @@ public interface TypeParsing {
      * @param psiField psi类
      * @return 布尔
      */
-    boolean isGeneric(PsiField psiField);
+    boolean hasGenericTag(PsiField psiField);
 
     /**
      * 是否是枚举
@@ -119,7 +120,7 @@ public interface TypeParsing {
      * @param psiField 语言本地完整的名称
      * @return clock类型系统的名称
      */
-    String convertToClockTypeName(PsiField psiField);
+    String convertToClockTypeName(PsiField psiField,Map<String, PsiTypeElement> tagToElement);
 
     /**
      * 解析注释信息的具体描述
@@ -144,6 +145,22 @@ public interface TypeParsing {
      * @return 本地合法的类型名称
      */
     String extractFieldNativeQualifiedTypeName(PsiType targetType);
+
+    /**
+     * 解析出本地完整合法的类型名称
+     * @param targetType 类型
+     * @param tagToElement 泛型集合
+     * @return 合法的类型名称
+     */
+    String extractFieldNativeQualifiedTypeName(PsiType targetType, Map<String, PsiTypeElement> tagToElement);
+
+    /**
+     * 解析出本地完整合法的类型名称
+     * @param targetField 类型
+     * @param tagToElement 泛型集合
+     * @return 合法的类型名称
+     */
+    String extractFieldNativeQualifiedTypeName(PsiField targetField, Map<String, PsiTypeElement> tagToElement);
 
     /**
      * 解析出集合的泛型类型
