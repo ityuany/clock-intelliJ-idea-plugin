@@ -18,9 +18,9 @@ public class ObjectListBiPredicate extends ParsingStrategy implements BiPredicat
      * List<Address> 场景
      */
     @Override
-    public boolean test(PsiField psiField, Map<String, PsiTypeElement> tagToElement) {
+    public boolean test(PsiField field, Map<String, PsiTypeElement> tagToElement) {
 
-        PsiType typeForGenerics = super.getListGenericsPsiType(psiField);
+        PsiType typeForGenerics = super.getListGenericsPsiType(field);
 
         // 不属于外部泛型
         boolean isGenericsTag = tagToElement.containsKey(
@@ -29,10 +29,10 @@ public class ObjectListBiPredicate extends ParsingStrategy implements BiPredicat
                         .orElse(null)
         );
 
-        String usableName = super.getFieldTypeUsableName(psiField);
+        String usableName = super.getFieldTypeUsableName(field);
 
         //自身先是List
-        boolean isList = super.isList(psiField);
+        boolean isList = super.isList(field);
 
         //泛型不是基础数据类型
         boolean isNotBasicForGenerics = !super.isBasic(typeForGenerics);
@@ -40,7 +40,9 @@ public class ObjectListBiPredicate extends ParsingStrategy implements BiPredicat
         //非泛型传递的引用依赖
         boolean isNotTag = !tagToElement.keySet().contains(usableName);
 
-        return isList && isNotBasicForGenerics && isNotTag && !isGenericsTag;
+        boolean isMap = super.isMap(super.getListGenericsPsiType(field));
+
+        return isList && isNotBasicForGenerics && isNotTag && !isGenericsTag && !isMap;
     }
 
     @Override

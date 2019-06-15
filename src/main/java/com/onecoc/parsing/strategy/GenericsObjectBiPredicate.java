@@ -10,6 +10,13 @@ import java.util.function.BiPredicate;
  * @author yuany
  */
 public class GenericsObjectBiPredicate extends ParsingStrategy implements BiPredicate<PsiField, Map<String, PsiTypeElement>> {
+
+
+    /**
+     * T - Address
+     * <p>
+     * T content
+     */
     @Override
     public boolean test(PsiField field, Map<String, PsiTypeElement> tagToElement) {
 
@@ -18,8 +25,10 @@ public class GenericsObjectBiPredicate extends ParsingStrategy implements BiPred
 
         boolean isTag = tagToElement.containsKey(usableName);
 
+        boolean isMap = super.isMap(super.getListGenericsPsiType(field));
 
-        return isTag;
+
+        return isTag && !isMap;
     }
 
     @Override

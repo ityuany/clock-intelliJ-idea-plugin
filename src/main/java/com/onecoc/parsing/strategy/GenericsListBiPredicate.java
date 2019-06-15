@@ -18,11 +18,14 @@ public class GenericsListBiPredicate extends ParsingStrategy implements BiPredic
 
         boolean isList = super.isList(field);
 
+
         boolean isGenericsTag = super.isGenericsTagForList(field, tagToElement);
 
         boolean isBasic = super.isBasicForGenericsTagForList(field, tagToElement);
 
-        return isList && isGenericsTag & !isBasic;
+        boolean isMap = super.isMap(super.getListGenericsPsiType(field));
+
+        return isList && isGenericsTag && !isBasic && !isMap;
     }
 
 

@@ -263,6 +263,18 @@ public abstract class ParsingStrategy {
     }
 
     /**
+     * 获取语句快的泛型信息
+     * @param element 目标节点
+     * @return 泛型集合
+     */
+    public List<PsiTypeElement> getGenericPsiTypeElement(PsiTypeElement element) {
+        return Optional.ofNullable(element)
+                .map(n -> PsiTreeUtil.findChildrenOfAnyType(element, PsiTypeElement.class))
+                .map(Lists::newArrayList)
+                .orElse(Lists.newArrayList());
+    }
+
+    /**
      * 提取出集合的泛型最终类型，这里主要是为多维集合做工作
      *
      * @param field 目标字段
@@ -330,6 +342,32 @@ public abstract class ParsingStrategy {
                         .map(PsiTypeElement::getType)
                         .orElse(null)
         );
+    }
+
+    /**
+     * 是否是Map类型
+     *
+     * @param field 目标字段
+     * @return 是否是Map
+     */
+    public boolean isMap(PsiField field) {
+        return Optional.ofNullable(field)
+                .map(this::getFieldTypeUsableName)
+                .map(MAP_QUALIFIED_NAME::contains)
+                .orElse(false);
+    }
+
+    /**
+     * 是否是Map类型
+     *
+     * @param type 目标字段类型
+     * @return 是否是Map
+     */
+    public boolean isMap(PsiType type) {
+        return Optional.ofNullable(type)
+                .map(this::getFieldTypeUsableName)
+                .map(MAP_QUALIFIED_NAME::contains)
+                .orElse(false);
     }
 
     public String toClockTypeName(String nativeTypeName) {

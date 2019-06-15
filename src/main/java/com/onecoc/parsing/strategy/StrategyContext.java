@@ -46,16 +46,19 @@ public class StrategyContext {
         PARSING_MACHINE.put(new GenericsListBiPredicate(), new GenericsListBiFunction());
 
         PARSING_MACHINE.put(new GenericsObjectBiPredicate(), new GenericsObjectBiFunction());
+
+        PARSING_MACHINE.put(new MapBiPredicate(), new MapBiFunction());
     }
 
     public Structure execute(PsiField field, Map<String, PsiTypeElement> tagToElement) {
-        return PARSING_MACHINE
+        BiFunction<PsiField, Map<String, PsiTypeElement>, Structure> function = PARSING_MACHINE
                 .entrySet()
                 .stream()
                 .filter(n -> n.getKey().test(field, tagToElement))
                 .findFirst()
-                .map(n -> n.getValue().apply(field, tagToElement))
-                .orElse(null);
+                .map(Map.Entry::getValue)
+                .orElse(new OtherBiFunction());
+        return function.apply(field,tagToElement);
     }
 
 }
