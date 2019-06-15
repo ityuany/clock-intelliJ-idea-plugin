@@ -1,4 +1,4 @@
-package com.onecoc.parsing;
+package com.onecoc.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,15 +18,23 @@ import java.util.List;
 @AllArgsConstructor
 public class Structure {
 
+    private String id;
+
     private String name;
 
     private String description;
+
+    private boolean required;
 
     private String nativeType;
 
     private String clockType;
 
-    private boolean required;
+    private String nativeTypeForList;
+
+    private String clockTypeForList;
+
+    private TypeStructure type;
 
     private List<Structure> children;
 

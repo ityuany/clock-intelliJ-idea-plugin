@@ -1,64 +1,61 @@
 package com.onecoc.parsing.strategy;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.intellij.psi.PsiField;
 import com.intellij.psi.PsiTypeElement;
-import com.onecoc.parsing.Structure;
+import com.onecoc.model.Structure;
 
-import java.util.List;
+import java.util.Map;
+import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 
 /**
  * @author yuany
  */
 public class StrategyContext {
 
-    private ParsingStrategy parsingStrategy;
+    private static final Map<BiPredicate<PsiField, Map<String, PsiTypeElement>>, BiFunction<PsiField, Map<String, PsiTypeElement>, Structure>> PARSING_MACHINE = Maps.newHashMap();
 
-    private static final List<String> BASIC_SYSTEM_TYPE = Lists.newArrayList(
-            "boolean",
-            "java.lang.Boolean",
-            "long",
-            "java.lang.Long",
-            "double",
-            "java.lang.Double",
-            "int",
-            "java.lang.Integer",
-            "float",
-            "java.lang.Float",
-            "char",
-            "java.lang.Character",
-            "java.math.BigDecimal",
-            "java.lang.String",
-            "java.util.Date"
-    );
+    static {
+        /**
+         * 基础数据类型的解析方案
+         */
+        PARSING_MACHINE.put(new BasicBiPredicate(), new BasicBiFunction());
 
-    private static final List<String> LIST_QUALIFIED_NAME = Lists.newArrayList(
-            "java.util.List",
-            "java.util.ArrayList"
-    );
+        /**
+         * 枚举类型
+         */
+        PARSING_MACHINE.put(new EnumBiPredicate(), new EnumBiFunction());
+        /**
+         * 基础数据类型的List 解析方案
+         */
+        PARSING_MACHINE.put(new BasicListBiPredicate(), new BasicListBiFunction());
+        /**
+         * 自定义Object List 解析方案
+         */
+        PARSING_MACHINE.put(new ObjectListBiPredicate(), new ObjectListBiFunction());
 
-    private static final List<String> MAP_QUALIFIED_NAME = Lists.newArrayList(
-            "java.util.Map"
-    );
+        /**
+         * 泛型映射出来的是基础数据类型
+         */
+        PARSING_MACHINE.put(new GenericsBasicListBiPredicate(), new GenericsBasicListBiFunction());
 
-    private static final List<String> IGNORE_FIELD_NAME = Lists.newArrayList(
-            "serialVersionUID"
-    );
+        /**
+         * 泛型映射出来的是非基础数据类型
+         */
+        PARSING_MACHINE.put(new GenericsListBiPredicate(), new GenericsListBiFunction());
 
-    private static final List<String> IGNORE_FIELD_QUALIFIED_NAME = Lists.newArrayList(
-            "org.bson.types.ObjectId"
-    );
-
-    private static final List<String> JSR303_REQUIRED_ANNOTATION = Lists.newArrayList(
-            "javax.validation.constraints.NotNull",
-            "javax.validation.constraints.NotEmpty"
-    );
-
-    public StrategyContext(ParsingStrategy parsingStrategy) {
-        this.parsingStrategy = parsingStrategy;
+        PARSING_MACHINE.put(new GenericsObjectBiPredicate(), new GenericsObjectBiFunction());
     }
 
-    public Structure apply(PsiField target, List<PsiTypeElement> generic) {
-        return parsingStrategy.parsing(target, generic);
+    public Structure execute(PsiField field, Map<String, PsiTypeElement> tagToElement) {
+        return PARSING_MACHINE
+                .entrySet()
+                .stream()
+                .filter(n -> n.getKey().test(field, tagToElement))
+                .findFirst()
+                .map(n -> n.getValue().apply(field, tagToElement))
+                .orElse(null);
     }
+
 }

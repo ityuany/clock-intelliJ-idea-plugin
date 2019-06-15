@@ -1,4 +1,4 @@
-package com.onecoc.parsing;
+package com.onecoc.model;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

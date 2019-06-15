@@ -1,16 +1,21 @@
 package com.onecoc.parsing;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Streams;
 import com.intellij.psi.*;
 import com.intellij.psi.impl.source.javadoc.PsiDocTokenImpl;
 import com.intellij.psi.javadoc.PsiDocComment;
 import com.intellij.psi.util.PsiTreeUtil;
 import com.intellij.psi.util.PsiTypesUtil;
-import com.onecoc.parsing.strategy.ListParsingStrategy;
-import com.onecoc.parsing.strategy.ParsingStrategy;
+import com.onecoc.model.EnumStructure;
+import com.onecoc.model.Structure;
+import com.onecoc.parsing.strategy.StrategyContext;
 
 import java.util.*;
+import java.util.function.BiFunction;
+import java.util.function.Function;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -20,30 +25,43 @@ import java.util.stream.Stream;
 public class JavaTypeParsing implements TypeParsing {
 
     private static final List<String> BASIC_SYSTEM_TYPE = Lists.newArrayList(
-            "boolean", "java.lang.Boolean",
-            "long", "java.lang.Long",
-            "double", "java.lang.Double",
-            "int", "java.lang.Integer",
-            "float", "java.lang.Float",
-            "char", "java.lang.Character",
-            "java.math.BigDecimal", "java.lang.String",
+            "boolean",
+            "java.lang.Boolean",
+            "long",
+            "java.lang.Long",
+            "double",
+            "java.lang.Double",
+            "int",
+            "java.lang.Integer",
+            "float",
+            "java.lang.Float",
+            "char",
+            "java.lang.Character",
+            "java.math.BigDecimal",
+            "java.lang.String",
             "java.util.Date"
     );
 
     private static final List<String> LIST_QUALIFIED_NAME = Lists.newArrayList(
-            "java.util.List", "java.util.ArrayList"
+            "java.util.List",
+            "java.util.ArrayList"
     );
 
     private static final List<String> MAP_QUALIFIED_NAME = Lists.newArrayList(
             "java.util.Map"
     );
 
-    private static final List<String> IGNORE_FIELD_NAME = Lists.newArrayList("serialVersionUID");
+    private static final List<String> IGNORE_FIELD_NAME = Lists.newArrayList(
+            "serialVersionUID"
+    );
 
-    private static final List<String> IGNORE_FIELD_QUALIFIED_NAME = Lists.newArrayList("org.bson.types.ObjectId");
+    private static final List<String> IGNORE_FIELD_QUALIFIED_NAME = Lists.newArrayList(
+            "org.bson.types.ObjectId"
+    );
 
     private static final List<String> JSR303_REQUIRED_ANNOTATION = Lists.newArrayList(
-            "javax.validation.constraints.NotNull", "javax.validation.constraints.NotEmpty"
+            "javax.validation.constraints.NotNull",
+            "javax.validation.constraints.NotEmpty"
     );
 
     @Override
@@ -65,10 +83,10 @@ public class JavaTypeParsing implements TypeParsing {
             return "enum";
         } else if (isList) {
             PsiType genericsType = this.parsingListGenericsPsiType(psiField);
-            String genericsNativeQualifiedTypeName = this.extractFieldNativeQualifiedTypeName(genericsType);
+            String genericsNativeQualifiedTypeName = this.getFieldTypeUsableName(genericsType);
             //维度
             int deepIndex = this.parsingListDeep(psiField);
-            return String.format("array<%s>[%s]", isNormal(genericsType) ? this.convert(genericsNativeQualifiedTypeName) : "object", --deepIndex);
+            return String.format("array<%s>[%s]", isBasic(genericsType) ? this.convert(genericsNativeQualifiedTypeName) : "object", --deepIndex);
         } else {
             return this.convert(qualifiedNativeTypeName);
         }
@@ -77,44 +95,49 @@ public class JavaTypeParsing implements TypeParsing {
 
     private String convert(String nativeName) {
 
-        switch (nativeName) {
-            case "boolean":
-            case "java.lang.Boolean":
-                return "boolean";
-
-            case "long":
-            case "java.lang.Long":
-            case "double":
-            case "java.lang.Double":
-            case "int":
-            case "java.lang.Integer":
-            case "float":
-            case "java.lang.Float":
-            case "java.math.BigDecimal":
-                return "number";
-
-            case "char":
-            case "java.lang.Character":
-            case "java.lang.String":
-                return "string";
-
-            case "java.util.List":
-                return "array";
-
-            case "java.util.Map":
-                return "map";
-
-            case "java.util.Date":
-                return "moment";
-
-            default:
-                return "object";
-        }
+//        switch (nativeName) {
+//            case "boolean":
+//            case "java.lang.Boolean":
+//                return "boolean";
+//
+//            case "long":
+//            case "java.lang.Long":
+//            case "double":
+//            case "java.lang.Double":
+//            case "int":
+//            case "java.lang.Integer":
+//            case "float":
+//            case "java.lang.Float":
+//            case "java.math.BigDecimal":
+//                return "number";
+//
+//            case "char":
+//            case "java.lang.Character":
+//            case "java.lang.String":
+//                return "string";
+//
+//            case "java.util.List":
+//                return "array";
+//
+//            case "java.util.Map":
+//                return "map";
+//
+//            case "java.util.Date":
+//                return "moment";
+//
+//            default:
+//                return "object";
+//        }
+        return null;
 
     }
 
+    /**
+     * @param javaDocumentedElement 文档节点
+     * @return
+     */
     @Override
-    public String parsingDocDescription(PsiJavaDocumentedElement javaDocumentedElement) {
+    public String getDocDescription(PsiJavaDocumentedElement javaDocumentedElement) {
         return Optional.ofNullable(javaDocumentedElement)
                 .map(PsiJavaDocumentedElement::getDocComment)
                 .map(PsiDocComment::getDescriptionElements)
@@ -127,42 +150,89 @@ public class JavaTypeParsing implements TypeParsing {
                 .collect(Collectors.joining());
     }
 
+    /**
+     * @param targetField 目标字段
+     * @return
+     */
     @Override
-    public String extractFieldNativeQualifiedTypeName(PsiField targetField) {
+    public String getFieldTypeLiteralName(PsiField targetField) {
         return Optional.ofNullable(targetField)
                 .map(PsiField::getType)
-                .map(this::extractFieldNativeQualifiedTypeName)
+                .map(this::getFieldTypeLiteralName)
                 .orElse(null);
     }
 
     @Override
-    public String extractFieldNativeQualifiedTypeName(PsiType targetType) {
+    public String getFieldTypeLiteralName(PsiType targetType) {
         return Optional.ofNullable(targetType)
-                .map(PsiTypesUtil::getPsiClass)
-                .map(PsiClass::getQualifiedName)
-                .orElse(
-                        Optional.ofNullable(targetType)
-                                .map(PsiType::getCanonicalText)
-                                .orElse(null)
-                );
+                .map(PsiType::getCanonicalText)
+                .orElse(null);
     }
 
     @Override
-    public String extractFieldNativeQualifiedTypeName(PsiType targetType, Map<String, PsiTypeElement> tagToElement) {
+    public String getFieldTypeQualifiedName(PsiField targetField) {
+        return Optional.ofNullable(targetField)
+                .map(PsiField::getType)
+                .map(this::getFieldTypeQualifiedName)
+                .orElse(null);
+    }
 
-        String qualifiedTypeName = this.extractFieldNativeQualifiedTypeName(targetType);
+    @Override
+    public String getFieldTypeUsableName(PsiType targetType) {
+        String literalName = Optional
+                .ofNullable(targetType)
+                .map(this::getFieldTypeLiteralName)
+                .orElse(null);
+        return Optional
+                .ofNullable(targetType)
+                .map(this::getFieldTypeQualifiedName)
+                .orElse(literalName);
+    }
 
-        return Optional.ofNullable(qualifiedTypeName)
-                .map(tagToElement::get)
-                .map(PsiTypeElement::getType)
-                .map(this::extractFieldNativeQualifiedTypeName)
-                .orElse(qualifiedTypeName);
+    @Override
+    public String getFieldTypeUsableName(PsiField targetField) {
 
+        String literalName = Optional
+                .ofNullable(targetField)
+                .map(this::getFieldTypeLiteralName)
+                .orElse(null);
+
+        return Optional
+                .ofNullable(targetField)
+                .map(this::getFieldTypeQualifiedName)
+                .orElse(literalName);
+    }
+
+    /**
+     * @param targetType 目标字段
+     * @return
+     */
+    @Override
+    public String getFieldTypeQualifiedName(PsiType targetType) {
+        return Optional.ofNullable(targetType)
+                .map(PsiTypesUtil::getPsiClass)
+                .map(PsiClass::getQualifiedName)
+                .orElse(null);
     }
 
     @Override
     public String extractFieldNativeQualifiedTypeName(PsiField targetField, Map<String, PsiTypeElement> tagToElement) {
-        return this.extractFieldNativeQualifiedTypeName(targetField.getType(), tagToElement);
+        String literalName = this.getFieldTypeLiteralName(targetField);
+        String qualifiedName = this.getFieldTypeQualifiedName(targetField);
+        if (Objects.isNull(qualifiedName)) {
+            boolean isGenericsTag = Optional.ofNullable(tagToElement)
+                    .map(Map::keySet)
+                    .map(n -> n.contains(literalName))
+                    .orElse(false);
+            if (isGenericsTag) {
+                PsiTypeElement element = tagToElement.get(literalName);
+                PsiType elementType = Optional.ofNullable(element).map(PsiTypeElement::getType).orElse(null);
+                return Optional.ofNullable(elementType).map(this::getFieldTypeUsableName).orElse(null);
+            } else {
+                return literalName;
+            }
+        }
+        return qualifiedName;
     }
 
     @Override
@@ -226,9 +296,24 @@ public class JavaTypeParsing implements TypeParsing {
     }
 
     @Override
+    public boolean isEnum(PsiType targetType) {
+        return Optional.ofNullable(targetType)
+                .map(PsiTypesUtil::getPsiClass)
+                .map(PsiClass::isEnum)
+                .orElse(false);
+    }
+
+    @Override
+    public boolean isEnum(PsiClass targetClass) {
+        return Optional.ofNullable(targetClass)
+                .map(PsiClass::isEnum)
+                .orElse(false);
+    }
+
+    @Override
     public boolean isList(PsiField field) {
         return Optional.ofNullable(field)
-                .map(this::extractFieldNativeQualifiedTypeName)
+                .map(this::getFieldTypeUsableName)
                 .map(LIST_QUALIFIED_NAME::contains)
                 .orElse(false);
     }
@@ -236,7 +321,7 @@ public class JavaTypeParsing implements TypeParsing {
     @Override
     public boolean isList(PsiType targetType) {
         return Optional.ofNullable(targetType)
-                .map(this::extractFieldNativeQualifiedTypeName)
+                .map(this::getFieldTypeUsableName)
                 .map(LIST_QUALIFIED_NAME::contains)
                 .orElse(false);
     }
@@ -244,23 +329,23 @@ public class JavaTypeParsing implements TypeParsing {
     @Override
     public boolean isMap(PsiField field) {
         return Optional.ofNullable(field)
-                .map(this::extractFieldNativeQualifiedTypeName)
+                .map(this::getFieldTypeUsableName)
                 .map(MAP_QUALIFIED_NAME::contains)
                 .orElse(false);
     }
 
     @Override
-    public boolean isNormal(PsiField field) {
+    public boolean isBasic(PsiField field) {
         return Optional.ofNullable(field)
-                .map(this::extractFieldNativeQualifiedTypeName)
+                .map(this::getFieldTypeUsableName)
                 .map(BASIC_SYSTEM_TYPE::contains)
                 .orElse(false);
     }
 
     @Override
-    public boolean isNormal(PsiType targetType) {
+    public boolean isBasic(PsiType targetType) {
         return Optional.ofNullable(targetType)
-                .map(this::extractFieldNativeQualifiedTypeName)
+                .map(this::getFieldTypeUsableName)
                 .map(BASIC_SYSTEM_TYPE::contains)
                 .orElse(false);
     }
@@ -286,14 +371,6 @@ public class JavaTypeParsing implements TypeParsing {
     }
 
     @Override
-    public boolean belongBasicSystemType(PsiType psiType) {
-        return Optional.ofNullable(psiType)
-                .map(PsiType::getCanonicalText)
-                .map(BASIC_SYSTEM_TYPE::contains)
-                .orElse(false);
-    }
-
-    @Override
     public List<EnumStructure> parsingEnumStructure(PsiClass psiClass) {
         return Optional.ofNullable(psiClass)
                 .map(PsiClass::getFields)
@@ -306,7 +383,7 @@ public class JavaTypeParsing implements TypeParsing {
                                 EnumStructure
                                         .builder()
                                         .value(enumConstant.getName())
-                                        .description(this.parsingDocDescription(enumConstant))
+                                        .description(this.getDocDescription(enumConstant))
                                         .build()
                 )
                 .collect(Collectors.toList());
@@ -314,7 +391,7 @@ public class JavaTypeParsing implements TypeParsing {
 
 
     @Override
-    public List<Structure> parsing(PsiClass psiClass, List<PsiTypeElement> generic) {
+    public List<Structure> parsing(PsiClass psiClass, Collection<PsiTypeElement> generic) {
 
         Map<String, PsiTypeElement> tagToElement = Streams.zip(
                 this.extractGenericTagText(psiClass).stream(),
@@ -331,6 +408,13 @@ public class JavaTypeParsing implements TypeParsing {
                 .filter(field -> !IGNORE_FIELD_QUALIFIED_NAME.contains(field.getType().getCanonicalText()))
                 .map(field -> {
 
+                    StrategyContext strategyContext = new StrategyContext();
+
+                    Structure execute = strategyContext.execute(field, tagToElement);
+
+                    if (1 == 1) {
+                        return execute;
+                    }
 
                     /**
                      * 类型系统的判断逻辑
@@ -341,7 +425,7 @@ public class JavaTypeParsing implements TypeParsing {
                      * 自定义对象类型
                      * Address address
                      *
-                     * 直接获取泛型的类型
+                     * 直接获取泛型的类型 , 这里有可能是基础数据类型， 也有可能是自定义对象
                      * T name;
                      *
                      * 泛型类型作为 List 的子类型
@@ -381,7 +465,7 @@ public class JavaTypeParsing implements TypeParsing {
                     boolean required = annotations.stream().map(PsiAnnotation::getQualifiedName).anyMatch(JSR303_REQUIRED_ANNOTATION::contains);
 
                     // 获取描述
-                    String description = this.parsingDocDescription(field);
+                    String description = this.getDocDescription(field);
 
                     //字段是不是泛型
                     boolean isGeneric = this.hasGenericTag(field);
@@ -392,37 +476,37 @@ public class JavaTypeParsing implements TypeParsing {
 
                     boolean isEnum = this.isEnum(field);
 
-                    boolean isNormal = this.isNormal(field);
+                    BiFunction<PsiField, Structure, Structure> getId = (f, s) -> s.setId(UUID.randomUUID().toString());
+
+                    Function<Structure, Structure> getName = (s) -> s.setName(field.getName());
+
+                    getId.andThen(getName).apply(field, Structure.builder().build());
 
                     Structure structure = Structure
                             .builder()
+                            .id(UUID.randomUUID().toString())
                             .name(fieldName)
                             .required(required)
                             .description(description)
-                            .nativeType(
-                                    Optional.ofNullable(tagToElement.get(qualifiedNativeTypeName))
-                                            .map(PsiTypeElement::getType)
-                                            .map(this::extractFieldNativeQualifiedTypeName)
-                                            .orElse(qualifiedNativeTypeName)
-                            )
+                            .nativeType(qualifiedNativeTypeName)
                             .clockType(clockTypeName)
                             .build();
 
+                    Map<Predicate<PsiField>, Function<PsiField, List<Structure>>> match = Maps.newHashMap();
+
+                    match.put(this::isList, psiField -> null);
+
 
                     if (isList) {
-
-
-
                         //集合
                         PsiType genericsType = this.parsingListGenericsPsiType(field);
 
-
-                        if (!this.isNormal(genericsType)) {
+                        if (!this.isBasic(genericsType)) {
 
                             if (tagToElement.keySet().contains(genericsType.getCanonicalText())) {
                                 PsiTypeElement element = tagToElement.get(genericsType.getCanonicalText());
 
-                                if (!this.isNormal(element.getType())) {
+                                if (!this.isBasic(element.getType())) {
 
                                     List<Structure> children = this.parsing(
                                             PsiTypesUtil.getPsiClass(element.getType()),
@@ -446,15 +530,23 @@ public class JavaTypeParsing implements TypeParsing {
 
                     } else if (isMap) {
                         //Map
-                    } else if (tagToElement.keySet().contains(qualifiedNativeTypeName)) {
+                    } else if (tagToElement.keySet().contains(this.getFieldTypeUsableName(field))) {
+
+
+
                         //泛型
-                        PsiTypeElement element = generic.remove(0);
-                        structure
-                                .setClockType("object")
-                                .setChildren(this.parsing(
-                                        PsiTypesUtil.getPsiClass(element.getType()),
-                                        generic
-                                ));
+                        PsiTypeElement element = Lists.newArrayList(generic).remove(0);
+
+                        if (!this.isBasic(element.getType())) {
+                            structure
+                                    .setClockType("object")
+                                    .setChildren(this.parsing(
+                                            PsiTypesUtil.getPsiClass(element.getType()),
+                                            generic
+                                    ));
+                        }
+
+
                     } else if (isEnum) {
                         //枚举类型
                         structure.setOptional(this.parsingEnumStructure(fieldPsiClass));
@@ -464,7 +556,7 @@ public class JavaTypeParsing implements TypeParsing {
                         //自定义对象
 
 
-                        if (tagToElement.keySet().contains(qualifiedNativeTypeName)) {
+                        if (tagToElement.keySet().contains(this.getFieldTypeUsableName(field))) {
                             //如果自身 就是泛型的tag指向
                             structure.setChildren(this.parsing(fieldPsiClass, Lists.newArrayList(
                                     tagToElement.get(qualifiedNativeTypeName)
@@ -473,7 +565,7 @@ public class JavaTypeParsing implements TypeParsing {
 
                             List<PsiTypeElement> psiTypeElements = this.extractGenericPsiTypeElement(field.getTypeElement());
 
-                            List<String> collect = psiTypeElements.stream().map(PsiTypeElement::getType).map(this::extractFieldNativeQualifiedTypeName).collect(Collectors.toList());
+                            List<String> collect = psiTypeElements.stream().map(PsiTypeElement::getType).map(this::getFieldTypeUsableName).collect(Collectors.toList());
 
 
                             List<PsiTypeElement> collect1 = tagToElement.entrySet().stream().filter(n -> collect.contains(n.getKey())).map(Map.Entry::getValue).collect(Collectors.toList());

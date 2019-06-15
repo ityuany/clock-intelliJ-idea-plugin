@@ -1,7 +1,10 @@
 package com.onecoc.parsing;
 
 import com.intellij.psi.*;
+import com.onecoc.model.EnumStructure;
+import com.onecoc.model.Structure;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -11,7 +14,7 @@ import java.util.Map;
 public interface TypeParsing {
 
     /**
-     * 是否是泛型
+     * 是否存在泛型标记
      *
      * @param type psi的类型
      * @return 布尔
@@ -19,7 +22,7 @@ public interface TypeParsing {
     boolean hasGenericTag(PsiType type);
 
     /**
-     * 是否是泛型
+     * 是否存在泛型标记
      *
      * @param psiClass psi类
      * @return 布尔
@@ -27,7 +30,7 @@ public interface TypeParsing {
     boolean hasGenericTag(PsiClass psiClass);
 
     /**
-     * 是否是泛型
+     * 是否存在泛型标记
      *
      * @param psiField psi类
      * @return 布尔
@@ -36,10 +39,27 @@ public interface TypeParsing {
 
     /**
      * 是否是枚举
+     *
      * @param psiField 目标字段
      * @return 布尔
      */
     boolean isEnum(PsiField psiField);
+
+    /**
+     * 是否是枚举
+     *
+     * @param targetType 目标字段
+     * @return 布尔
+     */
+    boolean isEnum(PsiType targetType);
+
+    /**
+     * 是否是枚举
+     *
+     * @param targetClass 目标字段
+     * @return 布尔
+     */
+    boolean isEnum(PsiClass targetClass);
 
     /**
      * 是否是集合类型
@@ -71,7 +91,7 @@ public interface TypeParsing {
      * @param field
      * @return
      */
-    boolean isNormal(PsiField field);
+    boolean isBasic(PsiField field);
 
     /**
      * 是否是基础数据类型
@@ -79,7 +99,7 @@ public interface TypeParsing {
      * @param targetType
      * @return
      */
-    boolean isNormal(PsiType targetType);
+    boolean isBasic(PsiType targetType);
 
     /**
      * 提取泛型的类型
@@ -99,14 +119,6 @@ public interface TypeParsing {
     List<String> extractGenericTagText(PsiClass psiClass);
 
     /**
-     * 是否属于系统类型
-     *
-     * @param psiType psi类型
-     * @return 是否属于系统类型
-     */
-    boolean belongBasicSystemType(PsiType psiType);
-
-    /**
      * 解析枚举类型的结构
      *
      * @param psiClass 枚举类
@@ -120,7 +132,7 @@ public interface TypeParsing {
      * @param psiField 语言本地完整的名称
      * @return clock类型系统的名称
      */
-    String convertToClockTypeName(PsiField psiField,Map<String, PsiTypeElement> tagToElement);
+    String convertToClockTypeName(PsiField psiField, Map<String, PsiTypeElement> tagToElement);
 
     /**
      * 解析注释信息的具体描述
@@ -128,35 +140,63 @@ public interface TypeParsing {
      * @param javaDocumentedElement 文档节点
      * @return 注释信息的描述
      */
-    String parsingDocDescription(PsiJavaDocumentedElement javaDocumentedElement);
+    String getDocDescription(PsiJavaDocumentedElement javaDocumentedElement);
+
+    /**
+     * 获取字段的字面类型名称
+     *
+     * @param targetField 目标字段
+     * @return 字面名称
+     */
+    String getFieldTypeLiteralName(PsiField targetField);
+
+    /**
+     * 获取字段的字面类型名称
+     *
+     * @param targetType 目标字段
+     * @return 字面名称
+     */
+    String getFieldTypeLiteralName(PsiType targetType);
+
+    /**
+     * 获取字段的类型完整名称
+     *
+     * @param targetField 目标字段
+     * @return 完整名称
+     */
+    String getFieldTypeQualifiedName(PsiField targetField);
+
+    /**
+     * 获取字段的类型完整名称
+     *
+     * @param targetType 目标字段
+     * @return 完整名称
+     */
+    String getFieldTypeUsableName(PsiType targetType);
+
+
+    /**
+     * 获取字段可用的类型名称
+     * 一般来说，优先取完整的类型名称
+     * 如果是基础数据类型的话，那么取字面名称
+     *
+     * @param targetField 目标字段
+     * @return 字段名称
+     */
+    String getFieldTypeUsableName(PsiField targetField);
+
+    /**
+     * 获取字段的类型完整名称
+     *
+     * @param targetType 目标字段
+     * @return 完整名称
+     */
+    String getFieldTypeQualifiedName(PsiType targetType);
 
     /**
      * 解析出本地完整合法的类型名称
      *
-     * @param targetField 类型
-     * @return 本地合法的类型名称
-     */
-    String extractFieldNativeQualifiedTypeName(PsiField targetField);
-
-    /**
-     * 解析出本地完整合法的类型名称
-     *
-     * @param targetType 类型
-     * @return 本地合法的类型名称
-     */
-    String extractFieldNativeQualifiedTypeName(PsiType targetType);
-
-    /**
-     * 解析出本地完整合法的类型名称
-     * @param targetType 类型
-     * @param tagToElement 泛型集合
-     * @return 合法的类型名称
-     */
-    String extractFieldNativeQualifiedTypeName(PsiType targetType, Map<String, PsiTypeElement> tagToElement);
-
-    /**
-     * 解析出本地完整合法的类型名称
-     * @param targetField 类型
+     * @param targetField  类型
      * @param tagToElement 泛型集合
      * @return 合法的类型名称
      */
@@ -178,7 +218,7 @@ public interface TypeParsing {
      */
     int parsingListDeep(PsiField field);
 
-    List<Structure> parsing(PsiClass psiClass, List<PsiTypeElement> generic);
+    List<Structure> parsing(PsiClass psiClass, Collection<PsiTypeElement> generic);
 
 
 }
