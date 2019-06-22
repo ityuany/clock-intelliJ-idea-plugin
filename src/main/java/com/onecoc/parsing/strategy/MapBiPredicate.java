@@ -12,7 +12,7 @@ import java.util.function.BiPredicate;
 public class MapBiPredicate extends ParsingStrategy implements BiPredicate<PsiField, Map<String, PsiTypeElement>> {
 
     @Override
-    public boolean test(PsiField field, Map<String, PsiTypeElement> stringPsiTypeElementMap) {
+    public boolean test(PsiField field, Map<String, PsiTypeElement> tagToElement) {
         return super.isMap(field);
     }
 

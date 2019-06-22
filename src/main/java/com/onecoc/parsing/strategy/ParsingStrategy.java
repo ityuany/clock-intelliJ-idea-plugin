@@ -333,7 +333,6 @@ public abstract class ParsingStrategy {
      * @return 布尔
      */
     public boolean isBasicForGenericsTagForList(PsiField field, Map<String, PsiTypeElement> tagToElement) {
-
         return this.isBasic(
                 Optional.ofNullable(field)
                         .map(this::getListGenericsPsiType)

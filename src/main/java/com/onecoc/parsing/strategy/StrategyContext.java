@@ -28,25 +28,44 @@ public class StrategyContext {
         PARSING_MACHINE.put(new EnumBiPredicate(), new EnumBiFunction());
         /**
          * 基础数据类型的List 解析方案
+         * List<String>
          */
         PARSING_MACHINE.put(new BasicListBiPredicate(), new BasicListBiFunction());
         /**
          * 自定义Object List 解析方案
+         * List<Object>
          */
         PARSING_MACHINE.put(new ObjectListBiPredicate(), new ObjectListBiFunction());
 
         /**
          * 泛型映射出来的是基础数据类型
+         *
+         * T -> String
+         *
+         * List<T>
          */
         PARSING_MACHINE.put(new GenericsBasicListBiPredicate(), new GenericsBasicListBiFunction());
 
         /**
          * 泛型映射出来的是非基础数据类型
+         *
+         * T -> Object
+         *
+         * List<T>
+         *
          */
         PARSING_MACHINE.put(new GenericsListBiPredicate(), new GenericsListBiFunction());
 
+        /**
+         * T -> Object
+         *
+         * T name;
+         */
         PARSING_MACHINE.put(new GenericsObjectBiPredicate(), new GenericsObjectBiFunction());
 
+        /**
+         * Map
+         */
         PARSING_MACHINE.put(new MapBiPredicate(), new MapBiFunction());
     }
 
@@ -58,7 +77,7 @@ public class StrategyContext {
                 .findFirst()
                 .map(Map.Entry::getValue)
                 .orElse(new OtherBiFunction());
-        return function.apply(field,tagToElement);
+        return function.apply(field, tagToElement);
     }
 
 }

@@ -17,6 +17,7 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <!-- Add your extensions here -->
+        <applicationConfigurable instance="com.onecoc.setting.C" />
     </extensions>
 
     <actions>
